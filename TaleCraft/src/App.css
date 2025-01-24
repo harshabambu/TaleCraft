@@ -3,6 +3,7 @@
   margin: 0;
   padding: 0;
 }
+
 body {
   font-family: Arial, sans-serif;
   background: linear-gradient(135deg, #e0c3fc, #8ec5fc);
@@ -104,7 +105,7 @@ body {
   color: #444;
   padding: 2px;
   background: #fff;
-  border-radius: 10px;
+  border-radius: 3px;
   border: 1px solid rgba(8, 8, 8, 0.288);
 }
 
@@ -113,10 +114,10 @@ body {
   border: none;
   background: #084cdf;
   padding: 10px 20px;
-  border-radius: 10px;
+  border-radius: 3px;
   color: #fff;
   cursor: pointer;
-  transition: background .2s ease-in-out;
+  transition: all .2s ease-in-out;
 }
 
 #file-input::file-selector-button:hover {

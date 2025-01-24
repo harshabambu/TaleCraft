@@ -39,11 +39,11 @@ function App() {
     <>
       <h1 style={{ textAlign: "center", fontSize: "4rem" }}>Tale Craft</h1>
       <p style={{ textAlign: "center" }}>A storytelling platform</p>
-      <form class="form" onSubmit={handleSubmit}>
-        <span class="form-title">Upload your file</span>
-        <p class="form-paragraph">File should be an image</p>
-        <label for="file-input" class="drop-container">
-          <span class="drop-title">Drop files here</span>
+      <form className="form" onSubmit={handleSubmit}>
+        <span className="form-title">Upload your file</span>
+        <p className="form-paragraph">File should be an image</p>
+        <label htmlFor="file-input" className="drop-container">
+          <span className="drop-title">Drop files here</span>
           or
           <input type="file" accept="image/*" required="" id="file-input" onChange={handleImageChange}/>
           or
