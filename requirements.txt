@@ -1,0 +1,7 @@
+requests
+PIL
+transformers
+google-generativeai
+gtts
+googletrans
+streamlit
