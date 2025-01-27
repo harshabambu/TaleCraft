@@ -1,5 +1,5 @@
 requests
-PIL
+Pillow
 transformers
 google-generativeai
 gtts
