@@ -5,3 +5,4 @@ google-generativeai
 gtts
 googletrans
 streamlit
+deep-translator
