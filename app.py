@@ -1,137 +1,176 @@
-import os
-import requests
-from PIL import Image
-from io import BytesIO
-from transformers import BlipProcessor, BlipForConditionalGeneration
-import google.generativeai as genai
-from gtts import gTTS
-from googletrans import Translator
 import streamlit as st
+import google.generativeai as genai
+from PIL import Image
+import io
+from gtts import gTTS
+from deep_translator import GoogleTranslator
+import tempfile
+import os
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyCC8Me5ZHBVBEuI3OZkoSZUF9sykvETxa8")  # Replace with your Gemini API key
+GOOGLE_API_KEY = "AIzaSyCC8Me5ZHBVBEuI3OZkoSZUF9sykvETxa8"  # Replace with your API key
+genai.configure(api_key=GOOGLE_API_KEY)
 
-# Load the Processor and Model for BLIP
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
+class StoryGenerator:
+    def __init__(self):
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.language_map = {
+            "telugu": "te",
+            "hindi": "hi",
+            "tamil": "ta",
+            "kannada": "kn",
+            "malayalam": "ml",
+            "french": "fr",  # French language support
+            "spanish": "es",  # Spanish language support
+            "german": "de",   # German language support
+            "portuguese": "pt",  # Portuguese language support
+            "japanese": "ja", # Japanese language support
+            "chinese": "zh",  # Chinese language support
+            "arabic": "ar",   # Arabic language support
+            "russian": "ru",  # Russian language support
+            "italian": "it",  # Italian language support
+            "dutch": "nl",    # Dutch language support
+            "korean": "ko"    # Korean language support
+        }
 
-# Supported languages
-LANGUAGE_MAP = {
-    "telugu": "te",
-    "hindi": "hi",
-    "tamil": "ta",
-    "kannada": "kn",
-    "malayalam": "ml"
-}
+    def generate_caption_and_story(self, image):
+        try:
+            # Prepare the prompt
+            prompt = """
+            1. First, describe what you see in this image in one sentence.
+            2. Then, create an engaging children's story (200-300 words) based on what you see.
+            Make the story suitable for ages 5-12, using simple language and a clear narrative.
+            
+            Format your response as:
+            Caption: [your one-sentence description]
+            
+            Story: [your story]
+            """
 
-# Step 1: Caption Generation using BLIP
-def generate_caption_from_image(image_source):
-    try:
-        if image_source.startswith("http://") or image_source.startswith("https://"):
-            response = requests.get(image_source)
-            response.raise_for_status()
-            raw_image = Image.open(BytesIO(response.content)).convert('RGB')
-        elif os.path.isfile(image_source):
-            raw_image = Image.open(image_source).convert('RGB')
-        else:
-            return "Error: Invalid image source. Provide a valid URL or local file path."
+            # Generate content using Gemini Vision
+            response = self.model.generate_content([prompt, image])
+            response_text = response.text
 
-        inputs = processor(raw_image, return_tensors="pt")
-        output = model.generate(**inputs)
-        description = processor.decode(output[0], skip_special_tokens=True)
-        return description
-    except Exception as e:
-        return f"Error: {str(e)}"
+            # Split the response into caption and story
+            try:
+                caption_part = response_text.split("Caption:")[1].split("Story:")[0].strip()
+                story_part = response_text.split("Story:")[1].strip()
+                return caption_part, story_part
+            except:
+                st.error("Error parsing the response. Using full response as story.")
+                return "Image description", response_text
 
-# Step 2: Story Generation using Gemini API
-def generate_story_from_caption(caption):
-    prompt = f"Generate a fun and easy-to-understand story for children aged 5-12 years old based on the following caption: '{caption}'. The story should be between 200 to 500 words long and use simple vocabulary that is easy for children to understand."
-   
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        story = response.text.strip()
-       
-        # Ensure the story is between 200 and 500 words
-        story_words = story.split()
-        if len(story_words) < 200:
-            story = " ".join(story_words + ['(Additional content to meet the 200-word requirement)'] * ((200 - len(story_words)) // 5))
-        elif len(story_words) > 500:
-            story = " ".join(story_words[:500])  # Limit to 500 words
-       
-        return story
-    except Exception as e:
-        print(f"Error generating story: {e}")
-        return "Error generating story."
+        except Exception as e:
+            st.error(f"Error generating content: {str(e)}")
+            return None, None
 
-# Step 3: Translate Text
-def translate_text(text, target_language):
-    translator = Translator()
-    translation = translator.translate(text, dest=target_language)
-    return translation.text
+    def translate_text(self, text, target_language):
+        if not text:
+            return None
+            
+        try:
+            translator = GoogleTranslator(source='en', target=target_language)
+            # Handle long text by splitting into chunks
+            max_chunk_size = 4500
+            chunks = [text[i:i + max_chunk_size] for i in range(0, len(text), max_chunk_size)]
+            translated_chunks = [translator.translate(chunk) for chunk in chunks]
+            return ' '.join(translated_chunks)
+        except Exception as e:
+            st.error(f"Error translating text: {str(e)}")
+            return None
 
-# Step 4: Convert Text to Speech and Save to MP3
-def text_to_speech(text, language_code, filename="output.mp3"):
-    tts = gTTS(text=text, lang=language_code)
-    tts.save(filename)
-    return filename
+    def text_to_speech(self, text, language_code):
+        if not text:
+            return None
+            
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
+                tts = gTTS(text=text, lang=language_code)
+                tts.save(tmp_file.name)
+                return tmp_file.name
+        except Exception as e:
+            st.error(f"Error generating speech: {str(e)}")
+            return None
 
-# Step 5: Combine Translation and TTS
-def translate_and_speak(text, target_language, tts_language_code):
-    # Translate the text to the target language
-    translated_text = translate_text(text, target_language)
-    print(f"\nTranslated Text: {translated_text}")
-   
-    # Convert the translated text to speech and save as a separate file
-    translated_filename = f"translated_{target_language}.mp3"
-    text_to_speech(translated_text, tts_language_code, translated_filename)
-    return translated_filename
+    def process_image(self, image_file, language_choice=None):
+        try:
+            # Open and display the image
+            image = Image.open(image_file)
+            st.image(image, caption='Uploaded Image', use_container_width=True)
 
-# Main Function to Process Image and Generate Story
-def process_image(image_path, language_choice=None):
-    # Step 1: Generate Caption from Image using BLIP
-    caption = generate_caption_from_image(image_path)
-    st.write(f"**Generated Caption:** {caption}")
-   
-    # Step 2: Generate Story based on Caption using Gemini API
-    story = generate_story_from_caption(caption)
-    st.write(f"**Generated Story:** {story}")
-   
-    # Step 3: Translate and Convert the Story to Speech in the selected language
-    if language_choice:
-        target_language = LANGUAGE_MAP.get(language_choice.lower())
-        if target_language:
-            st.write(f"\n**Translating and Converting to Speech in {language_choice.capitalize()}...**")
-            audio_file = translate_and_speak(story, target_language, target_language)
-        else:
-            st.write(f"Error: Language '{language_choice}' is not supported.")
-    else:
-        # Convert the Story to Speech in English
-        st.write("\n**Converting Story to Speech in English...**")
-        audio_file = text_to_speech(story, 'en', "english_story.mp3")
+            # Generate caption and story
+            with st.spinner('Generating caption and story...'):
+                caption, story = self.generate_caption_and_story(image)
+                
+                if caption:
+                    st.write("### Generated Caption")
+                    st.write(caption)
+                
+                if story:
+                    st.write("### Story in English")
+                    st.write(story)
 
-    return caption, story, audio_file
+                    # Generate English audio
+                    with st.spinner('Generating English audio...'):
+                        english_audio = self.text_to_speech(story, 'en')
+                        if english_audio:
+                            st.write("### English Audio")
+                            st.audio(english_audio)
 
-# Streamlit App Interface
-def streamlit_interface():
-    st.title("Image to Story Generator")
-    st.subheader("Upload an image to generate a caption, story, and speech.")
+            # Handle translation if language is selected
+            if language_choice and language_choice.lower() in self.language_map:
+                target_language = self.language_map[language_choice.lower()]
+                
+                with st.spinner(f'Translating to {language_choice}...'):
+                    translated_text = self.translate_text(story, target_language)
+                    
+                    if translated_text:
+                        st.write(f"### Story in {language_choice}")
+                        st.write(translated_text)
+                        
+                        # Generate translated audio
+                        with st.spinner(f'Generating {language_choice} audio...'):
+                            translated_audio = self.text_to_speech(translated_text, target_language)
+                            if translated_audio:
+                                st.write(f"### {language_choice} Audio")
+                                st.audio(translated_audio)
 
-    # Image upload
-    image = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg", "bmp"])
-    language_choice = st.selectbox("Select Language", ["None", "Telugu", "Hindi", "Tamil", "Kannada", "Malayalam"])
+            return caption, story
 
-    if image is not None:
-        image_path = image.name  # Use image name temporarily
-        with open(image_path, "wb") as f:
-            f.write(image.getbuffer())
+        except Exception as e:
+            st.error(f"Error processing image: {str(e)}")
+            return None, None
 
-        caption, story, audio_file = process_image(image_path, language_choice)
+def main():
+    st.title("Image Story Generator")
+    st.write("Upload an image to generate a story in multiple languages!")
 
-        # Displaying the results
-        st.write(f"**Caption:** {caption}")
-        st.write(f"**Story:** {story}")
-        st.audio(audio_file)
+    # Initialize generator
+    generator = StoryGenerator()
+
+    # File uploader
+    image_file = st.file_uploader("Choose an image...", type=['png', 'jpg', 'jpeg'])
+    
+    # Language selector
+    language_choice = st.selectbox(
+        "Select language for translation",
+        ["None"] + list(generator.language_map.keys())
+    )
+
+    if image_file is not None and st.button("Generate Story"):
+        if language_choice == "None":
+            language_choice = None
+            
+        # Process the image
+        generator.process_image(image_file, language_choice)
+
+        # Cleanup temporary files
+        for file in os.listdir():
+            if file.endswith('.mp3'):
+                try:
+                    os.remove(file)
+                except:
+                    pass
 
 if __name__ == "__main__":
-    streamlit_interface()
+    main()
