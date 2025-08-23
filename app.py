@@ -8,7 +8,7 @@ import tempfile
 import os
 
 # Configure Gemini API
-GOOGLE_API_KEY = "AIzaSyCC8Me5ZHBVBEuI3OZkoSZUF9sykvETxa8"  # Replace with your API key
+GOOGLE_API_KEY = "AIzaSyD1U92KxLfhY9ujXibda-ut6sn-bP5y41w"  # Replace with your API key
 genai.configure(api_key=GOOGLE_API_KEY)
 
 class StoryGenerator:
