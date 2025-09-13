@@ -8,11 +8,15 @@ import tempfile
 import os
 
 # Configure Gemini API
+<<<<<<< HEAD
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # Read API key from environment variable
 if not GOOGLE_API_KEY:
     st.error("GOOGLE_API_KEY environment variable not set. Please set it in Streamlit secrets or your environment.")
 else:
     genai.configure(api_key=GOOGLE_API_KEY)
+=======
+GOOGLE_API_KEY = "AIzaSyD1U92KxLfhY9ujXibda-ut6sn-bP5y41w"  # Replace with your API key
+>>>>>>> 6b1e4cfc0ff23be25e9f15819f76cfd5cdd4d746
 genai.configure(api_key=GOOGLE_API_KEY)
 
 class StoryGenerator:
