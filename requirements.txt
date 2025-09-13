@@ -1,0 +1,8 @@
+requests
+Pillow
+transformers
+google-generativeai
+gtts
+googletrans
+streamlit
+deep-translator
